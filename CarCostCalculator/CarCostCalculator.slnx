@@ -1,8 +1,9 @@
 <Solution>
-  <Project Path="CarCostCalculator.Common/CarCostCalculator.Common.csproj" />
+  <Project Path="CarCostCalculator/CarCostCalculator.Common/CarCostCalculator.Common.csproj" Id="a88ca56c-b27b-48a5-ab80-72ea916d8224" />
   <Project Path="CarCostCalculator/CarCostCalculator.Data.Contract/CarCostCalculator.Data.Contract.csproj" />
   <Project Path="CarCostCalculator/CarCostCalculator.Data.EF/CarCostCalculator.Data.EF.csproj" />
   <Project Path="CarCostCalculator/CarCostCalculator.Data.Repository/CarCostCalculator.Data.Repository.csproj" />
+  <Project Path="CarCostCalculator/CarCostCalculator.Domain.Logic/CarCostCalculator.Domain.Logic.csproj" Id="1c511a12-c66a-4fcd-b18b-71806444f233" />
   <Project Path="CarCostCalculator/CarCostCalculator.Domain.Model/CarCostCalculator.Domain.Model.csproj" />
   <Project Path="CarCostCalculator/CarCostCalculator.Web.API/CarCostCalculator.Web.API.csproj" />
 </Solution>

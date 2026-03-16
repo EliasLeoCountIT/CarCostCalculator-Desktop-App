@@ -1,6 +1,7 @@
 using CarCostCalculator.Data.EF.Extensions;
 using CarCostCalculator.Data.Repository.Extensions;
 using CarCostCalculator.Data.Repository.Profiles;
+using CarCostCalculator.Domain.Logic.Extensions;
 
 namespace CarCostCalculator.Web.API;
 
@@ -23,6 +24,9 @@ public static class Program
             .AddCarCostCalculatorContext(builder.Configuration)
             .AddAutoMapper(_ => { }, typeof(CarExpenseProfile).Assembly)
             .AddRepositories();
+
+        // add domain logic layer helper
+        builder.Services.AddHandlerHelper();
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();

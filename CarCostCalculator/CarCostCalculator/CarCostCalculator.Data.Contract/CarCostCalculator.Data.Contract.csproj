@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\CarCostCalculator.Common\CarCostCalculator.Common.csproj" />
     <ProjectReference Include="..\CarCostCalculator.Domain.Model\CarCostCalculator.Domain.Model.csproj" />
   </ItemGroup>
 

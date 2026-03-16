@@ -1,15 +1,20 @@
 ﻿using CarCostCalculator.Data.Contract;
+using CarCostCalculator.Domain.Logic.Excel;
+using CarCostCalculator.Domain.Logic.Excel.Models;
 using CarCostCalculator.Domain.Model.CarExpense;
+using CarCostCalculator.Domain.Model.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarCostCalculator.Web.API.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
-public class CarExpenseController(ICarExpenseRepository repo) : ControllerBase
+public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler excelHandler, ILogger<CarExpenseController> logger) : ControllerBase
 {
     #region Private Members
 
+    private readonly IExcelHandler _excelHandler = excelHandler;
+    private readonly ILogger<CarExpenseController> _logger = logger;
     private readonly ICarExpenseRepository _repo = repo;
 
     #endregion
@@ -123,10 +128,78 @@ public class CarExpenseController(ICarExpenseRepository repo) : ControllerBase
             return BadRequest("Only Excel files (.xlsx, .xls) are supported");
         }
 
-        // Process Excel file here
-        // You'll need a library like EPPlus or ClosedXML
+        var userLogs = new UserLogs();
 
-        return Ok("File imported successfully");
+        // Step 1: Convert IFormFile to FileCommandItem
+        var fileCommandItem = new CarCostCalculator.Common.FileCommandItem(
+            openReadStream: () => file.OpenReadStream(),
+            fileName: file.FileName,
+            contentType: file.ContentType,
+            length: file.Length,
+            contentDisposition: file.ContentDisposition
+        );
+
+        // Step 2: Load and validate Excel sheets
+        var excelSheets = _excelHandler.LoadData(fileCommandItem, userLogs);
+
+        if (excelSheets.Count == 0)
+        {
+            return BadRequest(new
+            {
+                Message = "No valid sheets found in the Excel file",
+                userLogs.Errors,
+                userLogs.Warnings,
+                userLogs.Information
+            });
+        }
+
+        var importedCount = 0;
+        var allCarExpenses = new List<CarExpenseFromExcel>();
+
+        // Step 3: Extract car expenses from each valid sheet
+        foreach (var sheet in excelSheets)
+        {
+            var carExpenses = _excelHandler.GetCarExpenseData(sheet, userLogs);
+            allCarExpenses.AddRange(carExpenses);
+        }
+
+        // Step 4: Save to database
+        foreach (var carExpense in allCarExpenses)
+        {
+            try
+            {
+                var carExpenseAddable = new CarExpenseAddable
+                {
+                    Date = carExpense.Date,
+                    CarInsurance = carExpense.CarInsurance,
+                    Fuel = carExpense.Fuel,
+                    Inspection = carExpense.Inspection,
+                    KilometersDriven = carExpense.KilometersDriven,
+                    OAMTC = carExpense.OAMTC,
+                    Other = carExpense.Other,
+                    Registration = carExpense.Registration,
+                    Service = carExpense.Service,
+                    Vignette = carExpense.Vignette
+                };
+
+                await _repo.Add(carExpenseAddable, cancellationToken);
+                importedCount++;
+            }
+            catch (Exception ex)
+            {
+                userLogs.LogError(_logger, $"Failed to import expense from {carExpense.ExcelRow}: {ex.Message}", ex);
+            }
+        }
+
+        return Ok(new
+        {
+            Message = $"File imported successfully. {importedCount} expense(s) imported from {file.FileName}.",
+            ImportedCount = importedCount,
+            TotalRows = allCarExpenses.Count,
+            userLogs.Errors,
+            userLogs.Warnings,
+            userLogs.Information
+        });
     }
 
     // POST api/CarExpense
