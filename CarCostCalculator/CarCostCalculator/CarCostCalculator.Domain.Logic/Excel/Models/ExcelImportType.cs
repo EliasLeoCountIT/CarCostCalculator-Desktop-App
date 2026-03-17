@@ -13,7 +13,7 @@ public static class ExcelImportExtensions
     public static int GetStartRow(this ExcelImportType importType)
      => importType switch
      {
-         ExcelImportType.CarExpenseImportMonth => 2,
+         ExcelImportType.CarExpenseImportMonth => 3,
          ExcelImportType.CarExpenseImportYear => 4,
          _ => throw new ArgumentException("Invalid Enum Value", nameof(importType))
      };

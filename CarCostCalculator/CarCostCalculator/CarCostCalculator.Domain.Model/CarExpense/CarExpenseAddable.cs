@@ -4,25 +4,15 @@ public class CarExpenseAddable
 {
     #region Public Properties
 
-    public decimal CarInsurance { get; set; }
+    public decimal Amount { get; set; }
 
     public required DateOnly Date { get; set; }
 
-    public decimal Fuel { get; set; }
+    public required string ExpenseCategory { get; set; }
 
-    public decimal Inspection { get; set; }
+    public long ExpenseCategoryId { get; set; }
 
-    public decimal KilometersDriven { get; set; }
-
-    public decimal OAMTC { get; set; }
-
-    public decimal Other { get; set; }
-
-    public decimal Registration { get; set; }
-
-    public decimal Service { get; set; }
-
-    public decimal Vignette { get; set; }
+    public string? Notes { get; set; }
 
     #endregion
 }

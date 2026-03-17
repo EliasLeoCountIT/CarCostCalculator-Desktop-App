@@ -10,6 +10,8 @@ public static class RepoExtension
     public static IServiceCollection AddRepositories(this IServiceCollection services)
     {
         services.AddScoped<ICarExpenseRepository, CarExpenseRepository>();
+        services.AddScoped<IExpenseCategoryRepository, ExpenseCategoryRepository>();
+        services.AddScoped<IKilometersRepository, KilometersRepository>();
 
         return services;
     }

@@ -11,6 +11,10 @@ public class CarCostCalculatorContext(DbContextOptions<CarCostCalculatorContext>
 
     public DbSet<CarExpense> CarExpenses => Set<CarExpense>();
 
+    public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
+
+    public DbSet<Kilometers> Kilometers => Set<Kilometers>();
+
     #endregion
 
     #region Protected Methods

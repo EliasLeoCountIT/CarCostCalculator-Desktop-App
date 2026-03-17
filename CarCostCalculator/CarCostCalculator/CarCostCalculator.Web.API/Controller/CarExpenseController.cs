@@ -9,12 +9,11 @@ namespace CarCostCalculator.Web.API.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
-public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler excelHandler, ILogger<CarExpenseController> logger) : ControllerBase
+public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler excelHandler) : ControllerBase
 {
     #region Private Members
 
     private readonly IExcelHandler _excelHandler = excelHandler;
-    private readonly ILogger<CarExpenseController> _logger = logger;
     private readonly ICarExpenseRepository _repo = repo;
 
     #endregion
@@ -187,13 +186,13 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
             }
             catch (Exception ex)
             {
-                userLogs.LogError(_logger, $"Failed to import expense from {carExpense.ExcelRow}: {ex.Message}", ex);
+                userLogs.LogError(null!, $"Failed to import expense from {carExpense.ExcelRow}: {ex.Message}", ex);
             }
         }
 
         return Ok(new
         {
-            Message = $"File imported successfully. {importedCount} expense(s) imported from {file.FileName}.",
+            Message = $"File imported successfully. {importedCount} expense(s) imported.",
             ImportedCount = importedCount,
             TotalRows = allCarExpenses.Count,
             userLogs.Errors,

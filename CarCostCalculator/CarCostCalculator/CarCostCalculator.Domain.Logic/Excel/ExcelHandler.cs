@@ -15,9 +15,11 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
 {
     #region Private Members
 
+    private static readonly CultureInfo _englishCulture = CultureInfo.CreateSpecificCulture("en");
     private readonly ActivitySource _activitySource = activitySource;
     private readonly ILogger<ExcelHandler> _logger = logger;
     private SharedStringItem[] _sharedStrings = [];
+    private WorkbookStylesPart? _stylesPart;
 
     #endregion
 
@@ -35,16 +37,16 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
             var carExpense = new CarExpenseFromExcel
             {
                 ExcelRow = excelRow,
-                CarInsurance = StringToDecimal(sheet["C2", row]),
-                Date = StringToDateOnly(sheet["B2", row], userLogs),
-                Fuel = StringToDecimal(sheet["I2", row]),
-                Inspection = StringToDecimal(sheet["E2", row]),
-                KilometersDriven = StringToDecimal(sheet["L2", row]),
-                OAMTC = StringToDecimal(sheet["G2", row]),
-                Other = StringToDecimal(sheet["J2", row]),
-                Registration = StringToDecimal(sheet["D2", row]),
-                Service = StringToDecimal(sheet["F2", row]),
-                Vignette = StringToDecimal(sheet["H2", row])
+                Date = StringToDateOnly(sheet["B", row], userLogs),
+                CarInsurance = StringToDecimal(sheet["C", row]),
+                Registration = StringToDecimal(sheet["D", row]),
+                Inspection = StringToDecimal(sheet["E", row]),
+                Service = StringToDecimal(sheet["F", row]),
+                OAMTC = StringToDecimal(sheet["G", row]),
+                Vignette = StringToDecimal(sheet["H", row]),
+                Fuel = StringToDecimal(sheet["I", row]),
+                Other = StringToDecimal(sheet["J", row]),
+                KilometersDriven = StringToDecimal(sheet["K", row])
             };
 
             result.Add(carExpense);
@@ -68,6 +70,7 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
             ?? throw new InvalidDataException("Excel file is empty.");
 
         _sharedStrings = [.. shareStringPart.SharedStringTable!.Elements<SharedStringItem>()];
+        _stylesPart = workbookPart.WorkbookStylesPart;
 
         var sheetNamesDict = new ReadOnlyDictionary<string, string?>(doc.WorkbookPart.Workbook!
             .Descendants<Sheet>()
@@ -127,7 +130,7 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
             return 0m;
         }
 
-        if (decimal.TryParse(str, NumberStyles.Number | NumberStyles.AllowExponent, CultureInfo.CreateSpecificCulture("en"), out var decimalValue))
+        if (decimal.TryParse(str, NumberStyles.Number | NumberStyles.AllowExponent, _englishCulture, out var decimalValue))
         {
             return decimalValue;
         }
@@ -157,9 +160,36 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
         return true;
     }
 
+    private string? ConvertIfDateCellValue(Cell cell, string? result)
+    {
+        // Handle Excel date cells (stored as OLE Automation date numbers)
+        if (IsCellFormattedAsDate(cell)
+            && !string.IsNullOrWhiteSpace(result)
+            && cell.DataType?.Value != CellValues.String
+            && double.TryParse(result, NumberStyles.Any, CultureInfo.InvariantCulture, out var numericValue))
+        {
+            // Check if this cell is actually formatted as a date in Excel
+            if (numericValue > 0 && numericValue < 109573)
+            {
+                try
+                {
+                    // Convert OLE Automation date to DateTime, then to ISO string
+                    var date = DateTime.FromOADate(numericValue);
+                    result = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    // If conversion fails, keep the original numeric value
+                }
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>
     /// If the content of the cell is stored as a shared string, get the text of the cell from the SharedStringTablePart and return it.
-    /// Otherwise, return the string value of the cell.
+    /// Otherwise, return the string value of the cell. For date cells, converts OLE Automation date to ISO format.
     /// </summary>
     /// <param name="cell"><see cref="Cell"/></param>
     /// <returns>The text of the cell</returns>
@@ -174,6 +204,7 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
         else
         {
             result = cell.CellValue?.Text;
+            result = ConvertIfDateCellValue(cell, result);
         }
 
         if (string.IsNullOrWhiteSpace(result) || result.Equals("null", StringComparison.OrdinalIgnoreCase))
@@ -186,6 +217,31 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
         }
     }
 
+    private bool IsCellFormattedAsDate(Cell cell)
+    {
+        if (_stylesPart == null || cell.StyleIndex == null)
+        {
+            return false;
+        }
+
+        var cellFormat = (CellFormat?)_stylesPart?.Stylesheet?.CellFormats?.ElementAt((int)cell.StyleIndex.Value);
+        if (cellFormat?.NumberFormatId == null)
+        {
+            return false;
+        }
+
+        var numberFormatId = cellFormat.NumberFormatId.Value;
+
+        // Built-in date formats: 14-22, 27-36, 45-47, 50-58
+        // See: https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.spreadsheet.numberingformat
+        return numberFormatId == 14 || numberFormatId == 15 || numberFormatId == 16 || numberFormatId == 17 ||
+               numberFormatId == 18 || numberFormatId == 19 || numberFormatId == 20 || numberFormatId == 21 ||
+               numberFormatId == 22 ||
+               (numberFormatId >= 27 && numberFormatId <= 36) ||
+               (numberFormatId >= 45 && numberFormatId <= 47) ||
+               (numberFormatId >= 50 && numberFormatId <= 58);
+    }
+
     private DateOnly StringToDateOnly(string? str, UserLogs userLogs)
     {
         if (string.IsNullOrWhiteSpace(str))
@@ -193,7 +249,7 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
             userLogs.LogError(_logger, "Date string is null or empty.");
         }
 
-        if (DateOnly.TryParse(str, CultureInfo.CreateSpecificCulture("en"), DateTimeStyles.None, out var dateValue))
+        if (DateOnly.TryParse(str, _englishCulture, DateTimeStyles.None, out var dateValue))
         {
             return dateValue;
         }

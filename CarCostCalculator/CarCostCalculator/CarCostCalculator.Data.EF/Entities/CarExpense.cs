@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CarCostCalculator.Data.EF.Entities;
 
@@ -7,33 +9,19 @@ public class CarExpense : IdentifiableBase
     #region Public Properties
 
     [Precision(18, 2)]
-    public decimal CarInsurance { get; set; }
+    public decimal Amount { get; set; }
 
     public required DateOnly Date { get; set; }
 
-    [Precision(18, 2)]
-    public decimal Fuel { get; set; }
+    public virtual ExpenseCategory? ExpenseCategory { get; set; }
 
-    [Precision(18, 2)]
-    public decimal Inspection { get; set; }
+    [ForeignKey(nameof(ExpenseCategory))]
+    public long ExpenseCategoryId { get; set; }
 
-    [Precision(18, 2)]
-    public decimal KilometersDriven { get; set; }
+    public bool IsDeleted { get; set; }
 
-    [Precision(18, 2)]
-    public decimal OAMTC { get; set; }
-
-    [Precision(18, 2)]
-    public decimal Other { get; set; }
-
-    [Precision(18, 2)]
-    public decimal Registration { get; set; }
-
-    [Precision(18, 2)]
-    public decimal Service { get; set; }
-
-    [Precision(18, 2)]
-    public decimal Vignette { get; set; }
+    [MaxLength(100)]
+    public string? Notes { get; set; }
 
     #endregion
 }

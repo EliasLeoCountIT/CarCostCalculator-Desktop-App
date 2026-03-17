@@ -54,7 +54,30 @@ public partial class ExcelSheet(ExcelImportType importType, IDictionary<string, 
 
     public int GetMaxRow()
     {
-        _maxRow ??= _data.Max(c => GetRowNumber(c.Key));
+        if (_maxRow.HasValue)
+        {
+            return _maxRow.Value;
+        }
+
+        // Get the start row based on import type
+        var startRow = ImportType.GetStartRow();
+
+        // Read the first date cell to determine the month
+        var firstDateCell = this["B", startRow];
+
+        if (string.IsNullOrWhiteSpace(firstDateCell) || !DateOnly.TryParse(firstDateCell, out var firstDate))
+        {
+            // Fallback to scanning all cells if date parsing fails
+            _maxRow = _data.Max(c => GetRowNumber(c.Key));
+            return _maxRow.Value;
+        }
+
+        // Calculate the number of days in the month
+        var daysInMonth = DateTime.DaysInMonth(firstDate.Year, firstDate.Month);
+
+        // Max row = start row + days in month - 1 (since start row is the first day)
+        _maxRow = startRow + daysInMonth - 1;
+
         return _maxRow.Value;
     }
 
