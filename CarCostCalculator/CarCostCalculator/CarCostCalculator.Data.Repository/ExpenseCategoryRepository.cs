@@ -18,7 +18,7 @@ public class ExpenseCategoryRepository(CarCostCalculatorContext context, IMapper
 
     #region Public Methods
 
-    public async Task<ExpenseCategoryChangeable> Add(ExpenseCategoryAddable expenseCategoryAddable, CancellationToken cancellationToken)
+    public async Task<ExpenseCategoryChangeable> Create(ExpenseCategoryAddable expenseCategoryAddable, CancellationToken cancellationToken)
     {
         var entity = Mapper.Map<ExpenseCategory>(expenseCategoryAddable);
 
@@ -32,6 +32,24 @@ public class ExpenseCategoryRepository(CarCostCalculatorContext context, IMapper
 
         return await LoadByPrimaryKey(entity.Id, cancellationToken)
             ?? throw new KeyNotFoundException(string.Format($"{_expenseCategoryNotFoundMessage} after adding", entity.Id));
+    }
+
+    public async Task<IEnumerable<ExpenseCategoryChangeable>> CreateMany(IEnumerable<ExpenseCategoryAddable> expenseCategories, CancellationToken cancellationToken)
+    {
+        var existingEntities = await QueryEntities()
+            .ToListAsync(cancellationToken);
+
+        var entitiesToCreate = Mapper.Map<IEnumerable<ExpenseCategory>>(expenseCategories)
+            .Where(e => !existingEntities.Any(existing => existing.Name == e.Name))
+            .ToList();
+
+        if (entitiesToCreate.Count > 0)
+        {
+            Context.ExpenseCategories.AddRange(entitiesToCreate);
+            await Context.SaveChangesAsync(cancellationToken);
+        }
+
+        return Mapper.Map<IEnumerable<ExpenseCategoryChangeable>>(entitiesToCreate);
     }
 
     public async Task Delete(long id, CancellationToken cancellationToken)

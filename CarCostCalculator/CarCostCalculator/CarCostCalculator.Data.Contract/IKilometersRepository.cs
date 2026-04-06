@@ -6,7 +6,9 @@ public interface IKilometersRepository : IQueryableRepository<KilometersChangeab
 {
     #region Public Methods
 
-    Task<KilometersChangeable> Add(KilometersAddable kilometersAddable, CancellationToken cancellationToken);
+    Task<KilometersChangeable> Create(KilometersAddable kilometersAddable, CancellationToken cancellationToken);
+
+    Task<IEnumerable<KilometersChangeable>> CreateMany(IEnumerable<KilometersAddable> kilometers, CancellationToken cancellationToken);
 
     Task Delete(long id, CancellationToken cancellationToken);
 

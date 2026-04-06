@@ -8,7 +8,7 @@ public interface IExcelHandler
 {
     #region Public Methods
 
-    List<CarExpenseFromExcel> GetCarExpenseData(ExcelSheet sheet, UserLogs userLogs);
+    List<DailyDataFromExcel> GetCarExpenseData(ExcelSheet sheet, UserLogs userLogs);
 
     ICollection<ExcelSheet> LoadData(FileCommandItem file, UserLogs userLogs);
 

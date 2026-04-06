@@ -6,7 +6,9 @@ public interface ICarExpenseRepository : IQueryableRepository<CarExpenseChangeab
 {
     #region Public Methods
 
-    Task<CarExpenseChangeable> Add(CarExpenseAddable carExpenseAddable, CancellationToken cancellationToken);
+    Task<CarExpenseChangeable> Create(CarExpenseAddable carExpenseAddable, CancellationToken cancellationToken);
+
+    Task<IEnumerable<CarExpenseChangeable>> CreateMany(IEnumerable<CarExpenseAddable> carExpenses, CancellationToken cancellationToken);
 
     Task Delete(long id, CancellationToken cancellationToken);
 

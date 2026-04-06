@@ -28,14 +28,15 @@ namespace CarCostCalculator.Data.EF.Migrations
                 name: "Kilometers",
                 columns: table => new
                 {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     Date = table.Column<DateOnly>(type: "date", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    KilometersDriven = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Id = table.Column<long>(type: "bigint", nullable: false)
+                    KilometersDriven = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Kilometers", x => x.Date);
+                    table.PrimaryKey("PK_Kilometers", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -65,6 +66,12 @@ namespace CarCostCalculator.Data.EF.Migrations
                 name: "IX_CarExpense_ExpenseCategoryId",
                 table: "CarExpense",
                 column: "ExpenseCategoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Kilometers_Date",
+                table: "Kilometers",
+                column: "Date",
+                unique: true);
         }
 
         /// <inheritdoc />

@@ -18,7 +18,7 @@ public class CarExpenseRepository(CarCostCalculatorContext context, IMapper mapp
 
     #region Public Methods
 
-    public async Task<CarExpenseChangeable> Add(CarExpenseAddable carExpenseAddable, CancellationToken cancellationToken)
+    public async Task<CarExpenseChangeable> Create(CarExpenseAddable carExpenseAddable, CancellationToken cancellationToken)
     {
         var entity = Mapper.Map<CarExpense>(carExpenseAddable);
 
@@ -32,6 +32,19 @@ public class CarExpenseRepository(CarCostCalculatorContext context, IMapper mapp
 
         return await LoadByPrimaryKey(entity.Id, cancellationToken)
             ?? throw new KeyNotFoundException(string.Format($"{_carExpenseNotFoundMessage} after adding", entity.Id));
+    }
+
+    public async Task<IEnumerable<CarExpenseChangeable>> CreateMany(IEnumerable<CarExpenseAddable> carExpenses, CancellationToken cancellationToken)
+    {
+        var entities = Mapper.Map<IEnumerable<CarExpense>>(carExpenses);
+
+        if (entities.Any())
+        {
+            Context.CarExpenses.AddRange(entities);
+            await Context.SaveChangesAsync(cancellationToken);
+        }
+
+        return Mapper.Map<IEnumerable<CarExpenseChangeable>>(entities);
     }
 
     public async Task Delete(long id, CancellationToken cancellationToken)

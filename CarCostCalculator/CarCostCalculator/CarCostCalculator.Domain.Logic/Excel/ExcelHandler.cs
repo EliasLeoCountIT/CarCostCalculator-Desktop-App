@@ -15,6 +15,7 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
 {
     #region Private Members
 
+    private const int CATEGORIES_ROW = 2;
     private static readonly CultureInfo _englishCulture = CultureInfo.CreateSpecificCulture("en");
     private readonly ActivitySource _activitySource = activitySource;
     private readonly ILogger<ExcelHandler> _logger = logger;
@@ -25,31 +26,30 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
 
     #region Public Methods
 
-    public List<CarExpenseFromExcel> GetCarExpenseData(ExcelSheet sheet, UserLogs userLogs)
+    public List<DailyDataFromExcel> GetCarExpenseData(ExcelSheet sheet, UserLogs userLogs)
     {
-        var result = new List<CarExpenseFromExcel>();
+        var result = new List<DailyDataFromExcel>();
         var maxRow = sheet.GetMaxRow();
 
         for (var row = ExcelImportType.CarExpenseImportMonth.GetStartRow(); row <= maxRow; row++)
         {
             var excelRow = $"Row: {row} Sheet:\"{sheet.Name}\"";
 
-            var carExpense = new CarExpenseFromExcel
+            var dailyData = new DailyDataFromExcel
             {
                 ExcelRow = excelRow,
                 Date = StringToDateOnly(sheet["B", row], userLogs),
-                CarInsurance = StringToDecimal(sheet["C", row]),
-                Registration = StringToDecimal(sheet["D", row]),
-                Inspection = StringToDecimal(sheet["E", row]),
-                Service = StringToDecimal(sheet["F", row]),
-                OAMTC = StringToDecimal(sheet["G", row]),
-                Vignette = StringToDecimal(sheet["H", row]),
-                Fuel = StringToDecimal(sheet["I", row]),
-                Other = StringToDecimal(sheet["J", row]),
-                KilometersDriven = StringToDecimal(sheet["K", row])
+                KilometersDriven = StringToDecimal(sheet["K", row]),
+                Expenses = []
             };
 
-            result.Add(carExpense);
+            AddExpensesIfNotZero(sheet, row, dailyData);
+
+            var addable = dailyData.KilometersDriven > 0 || dailyData.Expenses.Values.Count > 0;
+            if (addable)
+            {
+                result.Add(dailyData);
+            }
         }
 
         return result;
@@ -122,6 +122,26 @@ public partial class ExcelHandler(ILogger<ExcelHandler> logger, ActivitySource a
     #endregion
 
     #region Private Methods
+
+    private static void AddExpensesIfNotZero(ExcelSheet sheet, int row, DailyDataFromExcel dailyData)
+    {
+        AddIfNotZero(dailyData.Expenses, sheet["C", CATEGORIES_ROW]!, StringToDecimal(sheet["C", row]));
+        AddIfNotZero(dailyData.Expenses, sheet["D", CATEGORIES_ROW]!, StringToDecimal(sheet["D", row]));
+        AddIfNotZero(dailyData.Expenses, sheet["E", CATEGORIES_ROW]!, StringToDecimal(sheet["E", row]));
+        AddIfNotZero(dailyData.Expenses, sheet["F", CATEGORIES_ROW]!, StringToDecimal(sheet["F", row]));
+        AddIfNotZero(dailyData.Expenses, sheet["G", CATEGORIES_ROW]!, StringToDecimal(sheet["G", row]));
+        AddIfNotZero(dailyData.Expenses, sheet["H", CATEGORIES_ROW]!, StringToDecimal(sheet["H", row]));
+        AddIfNotZero(dailyData.Expenses, sheet["I", CATEGORIES_ROW]!, StringToDecimal(sheet["I", row]));
+        AddIfNotZero(dailyData.Expenses, sheet["J", CATEGORIES_ROW]!, StringToDecimal(sheet["J", row]));
+    }
+
+    private static void AddIfNotZero(Dictionary<string, decimal> expenses, string category, decimal amount)
+    {
+        if (amount > 0)
+        {
+            expenses[category] = amount;
+        }
+    }
 
     private static decimal StringToDecimal(string? str)
     {

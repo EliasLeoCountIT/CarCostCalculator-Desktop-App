@@ -8,8 +8,6 @@ public class CarExpenseAddable
 
     public required DateOnly Date { get; set; }
 
-    public required string ExpenseCategory { get; set; }
-
     public long ExpenseCategoryId { get; set; }
 
     public string? Notes { get; set; }

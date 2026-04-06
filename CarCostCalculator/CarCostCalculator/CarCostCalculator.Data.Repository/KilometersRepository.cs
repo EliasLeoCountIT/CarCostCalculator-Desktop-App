@@ -18,7 +18,7 @@ public class KilometersRepository(CarCostCalculatorContext context, IMapper mapp
 
     #region Public Methods
 
-    public async Task<KilometersChangeable> Add(KilometersAddable kilometersAddable, CancellationToken cancellationToken)
+    public async Task<KilometersChangeable> Create(KilometersAddable kilometersAddable, CancellationToken cancellationToken)
     {
         var entity = Mapper.Map<Kilometers>(kilometersAddable);
 
@@ -32,6 +32,24 @@ public class KilometersRepository(CarCostCalculatorContext context, IMapper mapp
 
         return await LoadByPrimaryKey(entity.Id, cancellationToken)
             ?? throw new KeyNotFoundException(string.Format($"{_kilometerEntryNotFoundMessage} after adding", entity.Id));
+    }
+
+    public async Task<IEnumerable<KilometersChangeable>> CreateMany(IEnumerable<KilometersAddable> kilometers, CancellationToken cancellationToken)
+    {
+        var existingEntities = await QueryEntities()
+            .ToListAsync(cancellationToken);
+
+        var entitiesToCreate = Mapper.Map<IEnumerable<Kilometers>>(kilometers)
+            .Where(e => !existingEntities.Any(existing => existing.Date == e.Date))
+            .ToList();
+
+        if (entitiesToCreate.Count > 0)
+        {
+            Context.Kilometers.AddRange(entitiesToCreate);
+            await Context.SaveChangesAsync(cancellationToken);
+        }
+
+        return Mapper.Map<IEnumerable<KilometersChangeable>>(entitiesToCreate);
     }
 
     public async Task Delete(long id, CancellationToken cancellationToken)

@@ -2,7 +2,7 @@
 
 namespace CarCostCalculator.Data.EF.Entities;
 
-[PrimaryKey(nameof(Date))]
+[Index(nameof(Date), IsUnique = true)]
 public class Kilometers : IdentifiableBase
 {
     #region Public Properties

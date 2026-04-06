@@ -6,7 +6,9 @@ public interface IExpenseCategoryRepository : IQueryableRepository<ExpenseCatego
 {
     #region Public Methods
 
-    Task<ExpenseCategoryChangeable> Add(ExpenseCategoryAddable expenseCategoryAddable, CancellationToken cancellationToken);
+    Task<ExpenseCategoryChangeable> Create(ExpenseCategoryAddable expenseCategoryAddable, CancellationToken cancellationToken);
+
+    Task<IEnumerable<ExpenseCategoryChangeable>> CreateMany(IEnumerable<ExpenseCategoryAddable> expenseCategories, CancellationToken cancellationToken);
 
     Task Delete(long id, CancellationToken cancellationToken);
 

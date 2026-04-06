@@ -1,20 +1,33 @@
-﻿using CarCostCalculator.Data.Contract;
+﻿using CarCostCalculator.Common;
+using CarCostCalculator.Data.Contract;
 using CarCostCalculator.Domain.Logic.Excel;
 using CarCostCalculator.Domain.Logic.Excel.Models;
 using CarCostCalculator.Domain.Model.CarExpense;
 using CarCostCalculator.Domain.Model.Common;
+using CarCostCalculator.Domain.Model.ExpenseCategory;
+using CarCostCalculator.Domain.Model.Kilometers;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarCostCalculator.Web.API.Controller;
 
 [Route("api/[controller]")]
 [ApiController]
-public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler excelHandler) : ControllerBase
+public class CarExpenseController(ICarExpenseRepository carExpenseRepo,
+                                  IKilometersRepository kilometersRepo,
+                                  IExpenseCategoryRepository expenseCategoryRepo,
+                                  ILogger<CarExpenseController> logger,
+                                  IExcelHandler excelHandler)
+    : ControllerBase
 {
     #region Private Members
 
+    private const int CATEGORIES_ROW = 2;
+
+    private readonly ICarExpenseRepository _carExpenseRepo = carExpenseRepo;
     private readonly IExcelHandler _excelHandler = excelHandler;
-    private readonly ICarExpenseRepository _repo = repo;
+    private readonly IExpenseCategoryRepository _expenseCategoryRepo = expenseCategoryRepo;
+    private readonly IKilometersRepository _kilometersRepo = kilometersRepo;
+    private readonly ILogger<CarExpenseController> _logger = logger;
 
     #endregion
 
@@ -26,7 +39,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
     {
         try
         {
-            await _repo.Delete(id, cancellationToken);
+            await _carExpenseRepo.Delete(id, cancellationToken);
             return Ok("Successfully deleted");
         }
         catch (KeyNotFoundException ex)
@@ -40,7 +53,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
     public async Task<ActionResult<IEnumerable<CarExpenseChangeable>>> Get(
         CancellationToken cancellationToken = default)
     {
-        var CarExpenses = await _repo.LoadAll(cancellationToken);
+        var CarExpenses = await _carExpenseRepo.LoadAll(cancellationToken);
         return Ok(CarExpenses);
     }
 
@@ -50,7 +63,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
     {
         try
         {
-            var CarExpense = await _repo.LoadByPrimaryKey(id, cancellationToken);
+            var CarExpense = await _carExpenseRepo.LoadByPrimaryKey(id, cancellationToken);
             return Ok(CarExpense);
         }
         catch (KeyNotFoundException ex)
@@ -65,7 +78,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
     {
         try
         {
-            var carExpense = await _repo.LoadByDate(date, cancellationToken);
+            var carExpense = await _carExpenseRepo.LoadByDate(date, cancellationToken);
             return Ok(carExpense);
         }
         catch (KeyNotFoundException ex)
@@ -83,7 +96,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
             return BadRequest("Month must be between 1 and 12");
         }
 
-        var carExpenses = await _repo.GetByMonth(year, month, cancellationToken);
+        var carExpenses = await _carExpenseRepo.GetByMonth(year, month, cancellationToken);
         return Ok(carExpenses);
     }
 
@@ -99,7 +112,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
             return BadRequest("Start date must be before or equal to end date");
         }
 
-        var carExpenses = await _repo.GetByTimeRange(startDate, endDate, cancellationToken);
+        var carExpenses = await _carExpenseRepo.GetByTimeRange(startDate, endDate, cancellationToken);
         return Ok(carExpenses);
     }
 
@@ -107,7 +120,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
     [HttpGet("year/{year}")]
     public async Task<ActionResult<IEnumerable<CarExpenseChangeable>>> GetByYear(int year, CancellationToken cancellationToken = default)
     {
-        var carExpenses = await _repo.GetByYear(year, cancellationToken);
+        var carExpenses = await _carExpenseRepo.GetByYear(year, cancellationToken);
         return Ok(carExpenses);
     }
 
@@ -130,7 +143,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
         var userLogs = new UserLogs();
 
         // Step 1: Convert IFormFile to FileCommandItem
-        var fileCommandItem = new CarCostCalculator.Common.FileCommandItem(
+        var fileCommandItem = new FileCommandItem(
             openReadStream: () => file.OpenReadStream(),
             fileName: file.FileName,
             contentType: file.ContentType,
@@ -152,49 +165,109 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
             });
         }
 
-        var importedCount = 0;
-        var allCarExpenses = new List<CarExpenseFromExcel>();
+        var allSheetData = new List<SheetDataFromExcel>();
 
         // Step 3: Extract car expenses from each valid sheet
         foreach (var sheet in excelSheets)
         {
-            var carExpenses = _excelHandler.GetCarExpenseData(sheet, userLogs);
-            allCarExpenses.AddRange(carExpenses);
+            var germanCategories = new[]
+           {
+                sheet["C", CATEGORIES_ROW],
+                sheet["D", CATEGORIES_ROW],
+                sheet["E", CATEGORIES_ROW],
+                sheet["F", CATEGORIES_ROW],
+                sheet["G", CATEGORIES_ROW],
+                sheet["H", CATEGORIES_ROW],
+                sheet["I", CATEGORIES_ROW],
+                sheet["J", CATEGORIES_ROW],
+            };
+
+            allSheetData.Add(new SheetDataFromExcel
+            {
+                SheetName = sheet.Name,
+                ExpenseCategories = germanCategories.ToList()!,
+                DailyData = _excelHandler.GetCarExpenseData(sheet, userLogs)
+            });
         }
 
-        // Step 4: Save to database
-        foreach (var carExpense in allCarExpenses)
-        {
-            try
-            {
-                var carExpenseAddable = new CarExpenseAddable
-                {
-                    Date = carExpense.Date,
-                    CarInsurance = carExpense.CarInsurance,
-                    Fuel = carExpense.Fuel,
-                    Inspection = carExpense.Inspection,
-                    KilometersDriven = carExpense.KilometersDriven,
-                    OAMTC = carExpense.OAMTC,
-                    Other = carExpense.Other,
-                    Registration = carExpense.Registration,
-                    Service = carExpense.Service,
-                    Vignette = carExpense.Vignette
-                };
+        var allDailyDataFromExcel = allSheetData.SelectMany(s => s.DailyData).ToList();
 
-                await _repo.Add(carExpenseAddable, cancellationToken);
-                importedCount++;
-            }
-            catch (Exception ex)
+        // import expense categories first
+        var expenseCategoriesToImport = allSheetData[0]
+            .ExpenseCategories
+            .Select(ec => new ExpenseCategoryAddable
             {
-                userLogs.LogError(null!, $"Failed to import expense from {carExpense.ExcelRow}: {ex.Message}", ex);
-            }
+                Name = ec,
+            });
+
+        var importedExpenseCategories = await _expenseCategoryRepo.CreateMany(expenseCategoriesToImport, cancellationToken);
+        var expenseCategoriesCount = importedExpenseCategories.Count();
+
+        if (expenseCategoriesCount != expenseCategoriesToImport.Count())
+        {
+            userLogs.LogWarning(_logger, "Not all expense categories from Excel file were imported");
+        }
+
+        var expenseCategoriesInDb = await _expenseCategoryRepo.LoadAll(cancellationToken);
+        var categoryNameToIdMap = expenseCategoriesInDb.ToDictionary(
+            ec => ec.Name,
+            ec => ec.Id
+        );
+
+        // import kilometers
+        var kilometersDrivenToImport = allDailyDataFromExcel.Where(x => x.KilometersDriven > 0)
+            .Select(x =>
+                new KilometersAddable
+                {
+                    KilometersDriven = x.KilometersDriven,
+                    Date = x.Date
+                })
+            .OrderBy(x => x.Date);
+
+        var importedKilometers = await _kilometersRepo.CreateMany(kilometersDrivenToImport, cancellationToken);
+        var importedKilometersCount = importedKilometers.Count();
+
+        if (importedKilometersCount != kilometersDrivenToImport.Count())
+        {
+            userLogs.LogWarning(_logger, "Not all kilometers from Excel file were imported");
+        }
+
+        // import car expenses
+        var carExpensesToImport = allDailyDataFromExcel.Where(x => x.Expenses.Count > 0)
+            .SelectMany(x =>
+                x.Expenses.Select(e =>
+                {
+                    // Look up the category ID from the name
+                    if (!categoryNameToIdMap.TryGetValue(e.Key, out var categoryId))
+                    {
+                        throw new InvalidOperationException($"Expense category '{e.Key}' not found in imported categories.");
+                    }
+
+                    return new CarExpenseAddable
+                    {
+                        Date = x.Date,
+                        Amount = e.Value,
+                        ExpenseCategoryId = categoryId,
+                        Notes = string.Empty
+                    };
+                }))
+            .OrderBy(x => x.Date);
+
+        var importedCarExpenses = await _carExpenseRepo.CreateMany(carExpensesToImport, cancellationToken);
+        var importedExpenseCount = importedCarExpenses.Count();
+
+        if (importedExpenseCount != carExpensesToImport.Count())
+        {
+            userLogs.LogWarning(_logger, "Not all car expenses from Excel file were imported");
         }
 
         return Ok(new
         {
-            Message = $"File imported successfully. {importedCount} expense(s) imported.",
-            ImportedCount = importedCount,
-            TotalRows = allCarExpenses.Count,
+            Message = $"File imported successfully. {importedExpenseCount} expense(s) and {importedKilometersCount} kilometer entries imported.",
+            ImportedKilometerEntriesCount = importedKilometersCount,
+            ImportedCarExpenseEntriesCount = importedExpenseCount,
+            ImportedExpenseCategories = expenseCategoriesCount,
+            TotalRows = allDailyDataFromExcel.Count,
             userLogs.Errors,
             userLogs.Warnings,
             userLogs.Information
@@ -209,7 +282,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
     {
         try
         {
-            var CarExpense = await _repo.Add(CarExpenseAddable, cancellationToken);
+            var CarExpense = await _carExpenseRepo.Create(CarExpenseAddable, cancellationToken);
             return CreatedAtAction(nameof(Get), new { id = CarExpense.Id }, CarExpense);
         }
         catch (KeyNotFoundException ex)
@@ -232,7 +305,7 @@ public class CarExpenseController(ICarExpenseRepository repo, IExcelHandler exce
 
         try
         {
-            var updatedCarExpense = await _repo.Update(CarExpenseChangeable, cancellationToken);
+            var updatedCarExpense = await _carExpenseRepo.Update(CarExpenseChangeable, cancellationToken);
             return Ok(updatedCarExpense);
         }
         catch (KeyNotFoundException ex)

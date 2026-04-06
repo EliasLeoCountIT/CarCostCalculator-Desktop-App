@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CarCostCalculator.Data.EF.Migrations
 {
     [DbContext(typeof(CarCostCalculatorContext))]
-    [Migration("20260317191532_Initial")]
+    [Migration("20260406174914_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -77,11 +77,14 @@ namespace CarCostCalculator.Data.EF.Migrations
 
             modelBuilder.Entity("CarCostCalculator.Data.EF.Entities.Kilometers", b =>
                 {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
-
-                    b.Property<long>("Id")
-                        .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -90,7 +93,10 @@ namespace CarCostCalculator.Data.EF.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.HasKey("Date");
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date")
+                        .IsUnique();
 
                     b.ToTable("Kilometers");
                 });
